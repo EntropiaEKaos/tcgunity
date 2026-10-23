@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../Scripts/GameLogic/ForgedActionStack.cs" Link="ForgedActionStack.cs" />
+    <Compile Include="../../Scripts/GameLogic/ForgedStackCommandGateway.cs" Link="ForgedStackCommandGateway.cs" />
     <Compile Include="../../Editor/ForgedActionStackTests.cs" Link="ForgedActionStackTests.cs" />
+    <Compile Include="../../Editor/ForgedStackCommandGatewayTests.cs" Link="ForgedStackCommandGatewayTests.cs" />
   </ItemGroup>
 </Project>
