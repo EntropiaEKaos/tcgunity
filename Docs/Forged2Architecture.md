@@ -30,3 +30,9 @@ A pure domain model is included below; full integration is not yet implemented. 
 - After a LIFO pop, priority returns to the resolved action's controller. The authoritative server will need to define priority rules for each phase before integration.
 - Tests added at `Editor/ForgedActionStackTests.cs` for LIFO, ID-specific cancellation, 4-player wraparound and invalid passes.
 - Tests are authored, not executed. The project does not currently expose a configured test pipeline; Unity Editor Test Runner verification remains necessary.
+
+## Snapshot protocol foundation
+- `ExportSnapshot()` produces a detached serializable DTO for state transfer or replay.
+- `FromSnapshot()` validates players, priority, pass state, unique ordered action IDs and next-ID monotonicity before restoring.
+- This is not network integration or anti-cheat by itself: only the authoritative server should produce trusted snapshots, and protocol versioning plus Unity transport messages remain to be built.
+- Two additional editor test cases cover round-trip restore and rejection of corrupted IDs.
