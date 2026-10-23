@@ -76,13 +76,21 @@ public class ForgedStackCommandGatewayTests
     {
         var stack = new ForgedActionStack(2, 0);
         var spell = stack.Push(0, "spell", "play");
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(1, 5);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => player == 1 && uid == "counter-card",
+            (player, uid, ability) => true);
         var gateway = new ForgedStackCommandGateway(stack,
             (player, uid) => player == 1 && uid == "counter-card",
-            (player, uid, actionId) => actionId == spell.id);
+            (player, uid, actionId) => actionId == spell.id, null, paid,
+            (player, uid, ability) => 2);
         Assert.IsFalse(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "stolen", spell.id)).accepted);
         Assert.AreEqual(1, stack.Count);
         Assert.IsTrue(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter-card", spell.id)).accepted);
-        Assert.AreEqual(0, stack.Count);
+        Assert.AreEqual(2, stack.Count);
+        Assert.AreEqual(spell.id, stack.ExportSnapshot().entries[0].id);
+        Assert.IsTrue(stack.Peek().IsCounter);
+        Assert.AreEqual(3, mana.GetAvailable(1));
     }
 
     [Test]
@@ -121,6 +129,10 @@ public class ForgedStackCommandGatewayTests
         var spell = stack.Push(0, "original", "cast");
         ForgedStackCommandGateway gateway = null;
         bool nestedAccepted = true;
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(1, 5);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => true,
+            (player, uid, ability) => true);
         gateway = new ForgedStackCommandGateway(stack,
             (player, uid) => true,
             (player, uid, id) =>
@@ -128,12 +140,12 @@ public class ForgedStackCommandGatewayTests
                 nestedAccepted = gateway.Execute(1,
                     Cmd(ForgedStackCommandGateway.CommandKind.Pass, 1)).accepted;
                 return true;
-            });
+            }, null, paid, (player, uid, ability) => 2);
         var counter = gateway.Execute(1,
             Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", spell.id));
         Assert.IsTrue(counter.accepted);
         Assert.IsFalse(nestedAccepted);
-        Assert.AreEqual(0, stack.Count);
+        Assert.AreEqual(2, stack.Count);
         Assert.AreEqual(0, stack.PriorityPlayer);
     }
 
@@ -142,9 +154,14 @@ public class ForgedStackCommandGatewayTests
     {
         var stack = new ForgedActionStack(2, 0);
         stack.Push(0, "original", "cast");
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(1, 5);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => true,
+            (player, uid, ability) => true);
         var gateway = new ForgedStackCommandGateway(stack,
             (player, uid) => true,
-            (player, uid, id) => throw new System.InvalidOperationException("Rule failed"));
+            (player, uid, id) => throw new System.InvalidOperationException("Rule failed"),
+            null, paid, (player, uid, ability) => 2);
         Assert.Throws<System.InvalidOperationException>(() =>
             gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", 1)));
         Assert.AreEqual(1, stack.Count);
