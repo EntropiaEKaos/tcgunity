@@ -75,5 +75,34 @@ public class ForgedStackCommandGatewayTests
         Assert.AreEqual(0, stack.Count);
     }
 
+    [Test]
+    public void InvalidCounterDoesNotInvokeRuleHookOrChangeStack()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "original", "cast");
+        int validations = 0;
+        var gateway = new ForgedStackCommandGateway(stack,
+            (player, uid) => true,
+            (player, uid, id) => { validations++; return true; });
+        Assert.IsFalse(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", spell.id + 999)).accepted);
+        Assert.AreEqual(0, validations);
+        Assert.AreEqual(spell.id, stack.Peek().id);
+        Assert.AreEqual(1, stack.PriorityPlayer);
+    }
+
+    [Test]
+    public void OutOfPriorityCounterDoesNotInvokeRuleHook()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "original", "cast");
+        int validations = 0;
+        var gateway = new ForgedStackCommandGateway(stack,
+            (player, uid) => true,
+            (player, uid, id) => { validations++; return true; });
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 0, "counter", spell.id)).accepted);
+        Assert.AreEqual(0, validations);
+        Assert.AreEqual(1, stack.Count);
+    }
+
 }
 #endif
