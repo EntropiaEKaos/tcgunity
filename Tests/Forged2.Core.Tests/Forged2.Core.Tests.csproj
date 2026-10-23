@@ -19,6 +19,8 @@
     <Compile Include="../../Editor/ForgedZoneOutboxTests.cs" Link="ForgedZoneOutboxTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedResolutionJournal.cs" Link="ForgedResolutionJournal.cs" />
     <Compile Include="../../Editor/ForgedResolutionJournalTests.cs" Link="ForgedResolutionJournalTests.cs" />
+    <Compile Include="../../Scripts/GameLogic/ForgedCheckpointStore.cs" Link="ForgedCheckpointStore.cs" />
+    <Compile Include="../../Editor/ForgedCheckpointStoreTests.cs" Link="ForgedCheckpointStoreTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedCheckpointIntegrity.cs" Link="ForgedCheckpointIntegrity.cs" />
     <Compile Include="../../Editor/ForgedCheckpointIntegrityTests.cs" Link="ForgedCheckpointIntegrityTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedRecoveryCheckpoint.cs" Link="ForgedRecoveryCheckpoint.cs" />
