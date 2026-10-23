@@ -74,6 +74,11 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Counter)
             {
+                // Reject stale IDs and wrong priority before calling external rule hooks.
+                // Hooks may later include mana checks, but must remain side-effect-free.
+                if (stack.ResolutionReady || stack.PriorityPlayer != command.playerId
+                    || !stack.HasPendingAction(command.targetActionId))
+                    return Reject("No pending target or priority denied");
                 // Never accept a free counter solely on knowledge of an action ID.
                 // The host supplies a rule/cost validator. No validator means deny.
                 if (string.IsNullOrEmpty(command.sourceUid)
