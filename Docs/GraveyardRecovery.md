@@ -39,3 +39,10 @@ Existing cards may depend on its behavior; this initial effect is intentionally 
 - `BoardDeck.OnClickGraveyard()` can be connected to a standard Unity UI Button's OnClick (useful on mobile, where right-click is unavailable). No scene/prefab bindings are automatically made by this PR.
 - `ShowDiscardCards()` now checks client readiness, safely rejects a missing player, and does not interrupt a visible ability card selection.
 - IMPORTANT: this is an authoring-time condition; the actual resurrection method still checks availability at effect resolution. If a slot becomes unavailable between activation and resolution, the effect remains a no-op and the ability's cost rules apply. Fully transactional cancellation is not implemented.
+
+## Experimental counter primitive (fourth slice)
+- `ResolveQueue.CancelPendingAbility(casterUid, abilityId)` removes **one queued ability** associated with a source card UID (and optionally a specific ability ID). Unrelated queued abilities retain their FIFO order.
+- `GameLogic.CounterPendingAbility(target)` delegates to that queue operation.
+- `EffectCounterPendingAbility` is an **opt-in prototype**, not a replacement for `EffectCounter`. It does not discard targets, undo effects already resolved, open a priority window, or implement spell-on-stack targeting.
+- IMPORTANT: since abilities often resolve immediately and card target selection pauses the queue, this effect may do nothing in ordinary matches. Do not ship or configure counter cards using this primitive without a dedicated priority/target protocol.
+- Pending work: authoritative action IDs, resolution stack LIFO, priority/passes, response windows, stable serialization and UI, and server/client tests.
