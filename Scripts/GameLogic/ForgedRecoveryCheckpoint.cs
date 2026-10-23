@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace TcgEngine
 {
@@ -43,13 +44,30 @@ namespace TcgEngine
         {
             if (snapshot == null || snapshot.version != 1)
                 throw new ArgumentException("Unsupported recovery checkpoint version");
-            // All component validation completes before any state is returned.
-            return new Restored {
+            // Validate each component and cross-component references before returning.
+            var restored = new Restored {
                 stack = ForgedActionStack.FromSnapshot(snapshot.stack),
                 mana = ForgedManaLedger.FromSnapshot(snapshot.mana),
                 journal = ForgedResolutionJournal.FromSnapshot(snapshot.journal),
                 outbox = ForgedZoneOutbox.FromSnapshot(snapshot.outbox)
             };
+            var reserved = new HashSet<long>();
+            foreach (var item in snapshot.mana.reservations)
+            {
+                if (!reserved.Add(item.actionId))
+                    throw new ArgumentException("Duplicate mana reservation");
+                // Older resolved actions can retain committed cost records until finalized.
+                // Uncommitted reservations must still have their action pending.
+                if (!item.committed && !restored.stack.HasPendingAction(item.actionId))
+                    throw new ArgumentException("Uncommitted mana reservation has no pending action");
+            }
+            var journalIds = new HashSet<long>(snapshot.journal.handledActionIds);
+            foreach (var instruction in snapshot.outbox.items)
+            {
+                if (!journalIds.Contains(instruction.actionId))
+                    throw new ArgumentException("Zone outbox action missing from resolution journal");
+            }
+            return restored;
         }
     }
 }
