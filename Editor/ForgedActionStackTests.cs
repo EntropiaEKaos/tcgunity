@@ -129,5 +129,47 @@ public class ForgedActionStackTests
         Assert.AreEqual(0, stack.Count);
     }
 
+    [Test]
+    public void CounterCanBeCounteredBeforeOriginalResolves()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "spell", "cast");
+        var counter = stack.PushCounter(1, "counter", "negate", spell.id);
+        var counterCounter = stack.PushCounter(0, "protect", "negate", counter.id);
+        Assert.AreEqual(counterCounter.id, stack.Peek().id);
+        Assert.IsFalse(stack.Pass(1));
+        Assert.IsTrue(stack.Pass(0));
+        var resolving = stack.PopTop();
+        Assert.IsTrue(stack.ApplyResolvedCounter(resolving));
+        Assert.IsFalse(stack.HasPendingAction(counter.id));
+        Assert.IsTrue(stack.HasPendingAction(spell.id));
+    }
+
+    [Test]
+    public void CounterOnlyAppliesAtResolution()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "spell", "cast");
+        var counter = stack.PushCounter(1, "counter", "negate", spell.id);
+        Assert.IsTrue(stack.HasPendingAction(spell.id));
+        Assert.IsFalse(stack.Pass(0));
+        Assert.IsTrue(stack.Pass(1));
+        Assert.AreEqual(counter.id, stack.PopTop().id);
+        Assert.IsTrue(stack.ApplyResolvedCounter(counter));
+        Assert.IsFalse(stack.HasPendingAction(spell.id));
+    }
+
+    [Test]
+    public void CounterSnapshotRetainsTarget()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "spell", "cast");
+        var counter = stack.PushCounter(1, "counter", "negate", spell.id);
+        var copy = ForgedActionStack.FromSnapshot(stack.ExportSnapshot());
+        Assert.IsTrue(copy.Peek().IsCounter);
+        Assert.AreEqual(spell.id, copy.Peek().counterTargetId);
+        Assert.AreEqual(counter.id, copy.Peek().id);
+    }
+
 }
 #endif
