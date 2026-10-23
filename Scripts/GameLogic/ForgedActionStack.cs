@@ -16,13 +16,16 @@ namespace TcgEngine
             public readonly int controllerId;
             public readonly string sourceUid;
             public readonly string abilityId;
+            public readonly long counterTargetId;
+            public bool IsCounter { get { return counterTargetId > 0; } }
 
-            internal Entry(long id, int controllerId, string sourceUid, string abilityId)
+            internal Entry(long id, int controllerId, string sourceUid, string abilityId, long counterTargetId = 0)
             {
                 this.id = id;
                 this.controllerId = controllerId;
                 this.sourceUid = sourceUid;
                 this.abilityId = abilityId;
+                this.counterTargetId = counterTargetId;
             }
         }
 
@@ -61,6 +64,7 @@ namespace TcgEngine
             public int controllerId;
             public string sourceUid;
             public string abilityId;
+            public long counterTargetId;
         }
 
         /// <summary>Returns an independent state copy for authoritative sync or replay.</summary>
@@ -80,7 +84,8 @@ namespace TcgEngine
                     id = entry.id,
                     controllerId = entry.controllerId,
                     sourceUid = entry.sourceUid,
-                    abilityId = entry.abilityId
+                    abilityId = entry.abilityId,
+                    counterTargetId = entry.counterTargetId
                 });
             return snapshot;
         }
@@ -101,9 +106,10 @@ namespace TcgEngine
             {
                 if (entry == null || entry.id <= priorId || entry.id >= snapshot.nextId
                     || entry.controllerId < 0 || entry.controllerId >= snapshot.playerCount
-                    || string.IsNullOrEmpty(entry.sourceUid))
+                    || string.IsNullOrEmpty(entry.sourceUid)
+                    || entry.counterTargetId < 0 || entry.counterTargetId >= entry.id)
                     throw new ArgumentException("Invalid pending entry");
-                restored.entries.Add(new Entry(entry.id, entry.controllerId, entry.sourceUid, entry.abilityId));
+                restored.entries.Add(new Entry(entry.id, entry.controllerId, entry.sourceUid, entry.abilityId, entry.counterTargetId));
                 priorId = entry.id;
             }
             restored.nextId = snapshot.nextId;
@@ -138,6 +144,41 @@ namespace TcgEngine
             resolutionReady = false;
             PriorityPlayer = (controllerId + 1) % playerCount;
             return entry;
+        }
+
+        /// <summary>
+        /// Add a response to the LIFO stack instead of immediately cancelling.
+        /// Host must validate ownership, cost, timing and counterable targets.
+        /// </summary>
+        public Entry PushCounter(int controllerId, string sourceUid, string abilityId, long targetActionId)
+        {
+            if (!HasPendingAction(targetActionId))
+                throw new InvalidOperationException("Counter target does not exist");
+            if (resolutionReady || controllerId != PriorityPlayer || string.IsNullOrEmpty(sourceUid))
+                throw new InvalidOperationException("Counter priority denied");
+            Entry entry = new Entry(nextId++, controllerId, sourceUid, abilityId, targetActionId);
+            entries.Add(entry);
+            consecutivePasses = 0;
+            PriorityPlayer = (controllerId + 1) % playerCount;
+            return entry;
+        }
+
+        /// <summary>
+        /// Server resolves an already-popped counter entry. A countered counter
+        /// never resolves its own target. Returns false if target has disappeared.
+        /// </summary>
+        public bool ApplyResolvedCounter(Entry resolved)
+        {
+            if (resolved == null || !resolved.IsCounter)
+                return false;
+            for (int i = entries.Count - 1; i >= 0; i--)
+            {
+                if (entries[i].id != resolved.counterTargetId)
+                    continue;
+                entries.RemoveAt(i);
+                return true;
+            }
+            return false;
         }
 
         public bool Counter(int controllerId, long pendingId)
