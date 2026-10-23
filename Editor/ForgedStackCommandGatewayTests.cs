@@ -18,7 +18,8 @@ public class ForgedStackCommandGatewayTests
     public void RejectsImpersonationAndForeignSource()
     {
         var stack = new ForgedActionStack(2, 0);
-        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine");
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+            (player, uid, ability) => true);
         Assert.IsFalse(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "mine")).accepted);
         Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "theirs")).accepted);
         Assert.AreEqual(0, stack.Count);
@@ -38,7 +39,8 @@ public class ForgedStackCommandGatewayTests
     public void AcceptsOwnedActionAndPassesInOrder()
     {
         var stack = new ForgedActionStack(2, 0);
-        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine");
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+            (player, uid, ability) => true);
         var added = gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "mine"));
         Assert.IsTrue(added.accepted);
         Assert.Greater(added.actionId, 0);
@@ -139,6 +141,28 @@ public class ForgedStackCommandGatewayTests
             gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", 1)));
         Assert.AreEqual(1, stack.Count);
         Assert.IsTrue(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Pass, 1)).accepted);
+    }
+
+    [Test]
+    public void PlayFailsClosedWhenLegalityValidatorMissing()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true);
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "my-card")).accepted);
+        Assert.AreEqual(0, stack.Count);
+        Assert.AreEqual(0, stack.PriorityPlayer);
+    }
+
+    [Test]
+    public void PlayRejectedWhenGameRulesDenyCost()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        int validations = 0;
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true, null,
+            (player, uid, ability) => { validations++; return false; });
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "my-card")).accepted);
+        Assert.AreEqual(1, validations);
+        Assert.AreEqual(0, stack.Count);
     }
 
 }
