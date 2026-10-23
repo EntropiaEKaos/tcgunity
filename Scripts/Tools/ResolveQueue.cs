@@ -206,6 +206,34 @@ namespace TcgEngine
             return attack_queue;
         }
 
+        // Cancel a pending ability for a specific source card, not an already
+        // resolved effect. Does not change existing FIFO scheduling.
+        // Exclude the counter's own source UID in the caller when appropriate.
+        public virtual bool CancelPendingAbility(string casterUid, string abilityId = null)
+        {
+            if (string.IsNullOrEmpty(casterUid) || ability_queue.Count == 0)
+                return false;
+
+            bool removed = false;
+            int count = ability_queue.Count;
+            for (int i = 0; i < count; i++)
+            {
+                AbilityQueueElement element = ability_queue.Dequeue();
+                bool matches = !removed && element.caster != null
+                    && element.caster.uid == casterUid
+                    && (string.IsNullOrEmpty(abilityId)
+                        || (element.ability != null && element.ability.id == abilityId));
+                if (matches)
+                {
+                    removed = true;
+                    ability_elem_pool.Dispose(element);
+                }
+                else
+                    ability_queue.Enqueue(element);
+            }
+            return removed;
+        }
+
         public Queue<AbilityQueueElement> GetAbilityQueue()
         {
             return ability_queue;
