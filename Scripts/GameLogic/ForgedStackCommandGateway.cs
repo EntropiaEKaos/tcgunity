@@ -31,16 +31,22 @@ namespace TcgEngine
         private readonly Func<int, string, bool> ownsSource;
         private readonly Func<int, string, long, bool> canCounter;
         private readonly Func<int, string, string, bool> canPlay;
+        private readonly ForgedPaidActionService paidActions;
+        private readonly Func<int, string, string, int> manaCost;
         private bool executing;
 
         public ForgedStackCommandGateway(ForgedActionStack stack, Func<int, string, bool> ownsSource,
             Func<int, string, long, bool> canCounter = null,
-            Func<int, string, string, bool> canPlay = null)
+            Func<int, string, string, bool> canPlay = null,
+            ForgedPaidActionService paidActions = null,
+            Func<int, string, string, int> manaCost = null)
         {
             this.stack = stack ?? throw new ArgumentNullException(nameof(stack));
             this.ownsSource = ownsSource ?? throw new ArgumentNullException(nameof(ownsSource));
             this.canCounter = canCounter;
             this.canPlay = canPlay;
+            this.paidActions = paidActions;
+            this.manaCost = manaCost;
         }
 
         public Result Execute(int authenticatedPlayerId, Command command)
@@ -77,6 +83,9 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Play)
             {
+                // Fail closed until host supplies a single paid casting path.
+                if (paidActions == null || manaCost == null)
+                    return Reject("Paid action service not configured");
                 if (stack.ResolutionReady || stack.PriorityPlayer != command.playerId)
                     return Reject("Priority denied");
                 if (string.IsNullOrEmpty(command.sourceUid)
@@ -84,15 +93,11 @@ namespace TcgEngine
                     || canPlay == null
                     || !canPlay(command.playerId, command.sourceUid, command.abilityId))
                     return Reject("Play source or rules denied");
-                try
-                {
-                    var entry = stack.Push(command.playerId, command.sourceUid, command.abilityId);
-                    return new Result { accepted = true, actionId = entry.id };
-                }
-                catch (InvalidOperationException)
-                {
-                    return Reject("Priority denied");
-                }
+                int cost = manaCost(command.playerId, command.sourceUid, command.abilityId);
+                long id = paidActions.TryPlay(authenticatedPlayerId, command.playerId,
+                    command.sourceUid, command.abilityId, cost);
+                return id > 0 ? new Result { accepted = true, actionId = id }
+                    : Reject("Mana or cast rules denied");
             }
 
             if (command.kind == CommandKind.Counter)
