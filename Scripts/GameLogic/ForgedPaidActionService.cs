@@ -61,6 +61,45 @@ namespace TcgEngine
             }
         }
 
+        public long TryCounter(int authenticatedPlayer, int playerId, string sourceUid,
+            string abilityId, long targetActionId, int cost,
+            Func<int, string, long, bool> canCounter)
+        {
+            if (executing)
+                return 0;
+            executing = true;
+            try
+            {
+                if (authenticatedPlayer != playerId || cost < 0 || canCounter == null
+                    || stack.ResolutionReady || stack.PriorityPlayer != playerId
+                    || !stack.HasPendingAction(targetActionId)
+                    || string.IsNullOrEmpty(sourceUid) || mana.GetAvailable(playerId) < cost
+                    || !ownsSource(playerId, sourceUid)
+                    || !canCounter(playerId, sourceUid, targetActionId))
+                    return 0;
+
+                long nextActionId = stack.ExportSnapshot().nextId;
+                if (!mana.Reserve(nextActionId, playerId, cost))
+                    return 0;
+                try
+                {
+                    var entry = stack.PushCounter(playerId, sourceUid, abilityId, targetActionId);
+                    if (entry.id != nextActionId)
+                        throw new InvalidOperationException("Unexpected counter action ID");
+                    return entry.id;
+                }
+                catch
+                {
+                    mana.Refund(nextActionId);
+                    throw;
+                }
+            }
+            finally
+            {
+                executing = false;
+            }
+        }
+
         // Cost becomes non-refundable once the authoritative host confirms the cast.
         public bool CommitCost(long actionId) { return mana.Commit(actionId); }
         public bool RefundUncommitted(long actionId) { return mana.Refund(actionId); }
