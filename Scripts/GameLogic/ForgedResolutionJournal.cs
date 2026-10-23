@@ -17,7 +17,33 @@ namespace TcgEngine
             public bool countered;
         }
 
+        [Serializable]
+        public sealed class Snapshot
+        {
+            public List<long> handledActionIds = new List<long>();
+        }
+
         private readonly HashSet<long> handled = new HashSet<long>();
+
+        // Persist on the authoritative host before acknowledging a completed transition.
+        public Snapshot ExportSnapshot()
+        {
+            var snapshot = new Snapshot();
+            snapshot.handledActionIds.AddRange(handled);
+            snapshot.handledActionIds.Sort();
+            return snapshot;
+        }
+
+        public static ForgedResolutionJournal FromSnapshot(Snapshot snapshot)
+        {
+            if (snapshot == null || snapshot.handledActionIds == null)
+                throw new ArgumentException("Invalid journal snapshot");
+            var journal = new ForgedResolutionJournal();
+            foreach (long id in snapshot.handledActionIds)
+                if (id <= 0 || !journal.handled.Add(id))
+                    throw new ArgumentException("Duplicate or invalid action ID");
+            return journal;
+        }
 
         public List<ZoneInstruction> Record(ForgedStackResolutionService.Outcome outcome)
         {
