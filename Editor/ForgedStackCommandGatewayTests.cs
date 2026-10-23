@@ -236,5 +236,24 @@ public class ForgedStackCommandGatewayTests
         Assert.AreEqual(1, mana.GetAvailable(0));
     }
 
+    [Test]
+    public void CounterWithInsufficientManaLeavesOriginalPending()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var original = stack.Push(0, "original", "cast");
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(1, 1);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => true,
+            (player, uid, ability) => true);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true,
+            (player, uid, id) => true, null, paid, (player, uid, ability) => 2);
+        Assert.IsFalse(gateway.Execute(1,
+            Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", original.id)).accepted);
+        Assert.AreEqual(1, mana.GetAvailable(1));
+        Assert.AreEqual(1, stack.Count);
+        Assert.AreEqual(original.id, stack.Peek().id);
+        Assert.AreEqual(1, stack.PriorityPlayer);
+    }
+
 }
 #endif
