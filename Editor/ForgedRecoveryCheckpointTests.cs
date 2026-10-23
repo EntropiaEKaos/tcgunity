@@ -14,9 +14,10 @@ public class ForgedRecoveryCheckpointTests
         Assert.IsTrue(mana.Reserve(entry.id, 0, 2));
         var journal = new ForgedResolutionJournal();
         var outbox = new ForgedZoneOutbox();
-        outbox.Enqueue(new ForgedResolutionJournal.ZoneInstruction {
-            actionId = 99, sourceUid = "previous-spell", countered = true
-        });
+        foreach (var instruction in journal.Record(new ForgedStackResolutionService.Outcome {
+            resolvedActionId = 99, resolvedSourceUid = "previous-spell", isCounter = true
+        }))
+            outbox.Enqueue(instruction);
         var copy = ForgedRecoveryCheckpoint.Restore(
             ForgedRecoveryCheckpoint.Capture(stack, mana, journal, outbox));
         Assert.AreEqual(entry.id, copy.stack.Peek().id);
@@ -34,6 +35,31 @@ public class ForgedRecoveryCheckpointTests
         snap.version = 1;
         snap.mana = null;
         Assert.Throws<System.ArgumentException>(() => ForgedRecoveryCheckpoint.Restore(snap));
+    }
+    [Test]
+    public void MissingManaReservationActionRejectsCheckpoint()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(0, 5);
+        mana.Reserve(42, 0, 2);
+        var snapshot = ForgedRecoveryCheckpoint.Capture(stack, mana,
+            new ForgedResolutionJournal(), new ForgedZoneOutbox());
+        Assert.Throws<System.ArgumentException>(() => ForgedRecoveryCheckpoint.Restore(snapshot));
+    }
+
+    [Test]
+    public void OutboxWithoutJournalEntryRejectsCheckpoint()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var mana = new ForgedManaLedger();
+        var outbox = new ForgedZoneOutbox();
+        outbox.Enqueue(new ForgedResolutionJournal.ZoneInstruction {
+            actionId = 42, sourceUid = "spell", countered = true
+        });
+        var snapshot = ForgedRecoveryCheckpoint.Capture(stack, mana,
+            new ForgedResolutionJournal(), outbox);
+        Assert.Throws<System.ArgumentException>(() => ForgedRecoveryCheckpoint.Restore(snapshot));
     }
 }
 #endif
