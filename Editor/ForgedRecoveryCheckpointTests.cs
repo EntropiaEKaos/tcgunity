@@ -61,5 +61,32 @@ public class ForgedRecoveryCheckpointTests
             new ForgedResolutionJournal(), outbox);
         Assert.Throws<System.ArgumentException>(() => ForgedRecoveryCheckpoint.Restore(snapshot));
     }
+    [Test]
+    public void ProcessedActionStillInStackRejectsCheckpoint()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var action = stack.Push(0, "spell", "cast");
+        var journal = new ForgedResolutionJournal();
+        journal.Record(new ForgedStackResolutionService.Outcome {
+            resolvedActionId = action.id, resolvedSourceUid = "spell", isCounter = true
+        });
+        var snapshot = ForgedRecoveryCheckpoint.Capture(stack, new ForgedManaLedger(),
+            journal, new ForgedZoneOutbox());
+        Assert.Throws<System.ArgumentException>(() => ForgedRecoveryCheckpoint.Restore(snapshot));
+        Assert.AreEqual(action.id, stack.Peek().id);
+    }
+
+    [Test]
+    public void CompletedJournalActionWithoutPendingStackRestores()
+    {
+        var journal = new ForgedResolutionJournal();
+        journal.Record(new ForgedStackResolutionService.Outcome {
+            resolvedActionId = 7, resolvedSourceUid = "counter", isCounter = true
+        });
+        var snapshot = ForgedRecoveryCheckpoint.Capture(new ForgedActionStack(2, 0),
+            new ForgedManaLedger(), journal, new ForgedZoneOutbox());
+        Assert.IsNotNull(ForgedRecoveryCheckpoint.Restore(snapshot));
+    }
+
 }
 #endif
