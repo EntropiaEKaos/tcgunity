@@ -26,3 +26,10 @@
 
 ## Why no change to existing EffectSendPile
 Existing cards may depend on its behavior; this initial effect is intentionally opt-in.
+
+## Creature revival (second slice)
+- `EffectReviveDiscard` selects a **Character** in your own discard pile and brings the **same card UID** to a random empty slot on your side.
+- The revived card enters **exhausted**, cleared of temporary damage/status. This is **not** a normal play and does **not** fire OnPlay.
+- Use `AbilityTarget.CardSelector` with target conditions `ConditionCardPile=Discard`, `ConditionCardType=Character`, `ConditionOwner=true`.
+- If the board is full, there is no zone change. Configure card text accordingly; ability cost/activation may still be spent because the effect returns void.
+- Validations required: same UID, occupied field no-op, no OnPlay trigger, invalid target no-op, multiplayer synchronization and OnSummon client animation.
