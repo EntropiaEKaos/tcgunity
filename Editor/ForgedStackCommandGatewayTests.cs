@@ -18,8 +18,12 @@ public class ForgedStackCommandGatewayTests
     public void RejectsImpersonationAndForeignSource()
     {
         var stack = new ForgedActionStack(2, 0);
-        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(0, 5);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => player == 0 && uid == "mine",
             (player, uid, ability) => true);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+            (player, uid, ability) => true, paid, (player, uid, ability) => 2);
         Assert.IsFalse(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "mine")).accepted);
         Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "theirs")).accepted);
         Assert.AreEqual(0, stack.Count);
@@ -39,8 +43,12 @@ public class ForgedStackCommandGatewayTests
     public void AcceptsOwnedActionAndPassesInOrder()
     {
         var stack = new ForgedActionStack(2, 0);
-        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(0, 5);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => player == 0 && uid == "mine",
             (player, uid, ability) => true);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => player == 0 && uid == "mine", null,
+            (player, uid, ability) => true, paid, (player, uid, ability) => 2);
         var added = gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "mine"));
         Assert.IsTrue(added.accepted);
         Assert.Greater(added.actionId, 0);
@@ -163,6 +171,34 @@ public class ForgedStackCommandGatewayTests
         Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "my-card")).accepted);
         Assert.AreEqual(1, validations);
         Assert.AreEqual(0, stack.Count);
+    }
+
+    [Test]
+    public void GatewayRejectsFreePlayWithoutPaidService()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true, null,
+            (player, uid, ability) => true);
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "card")).accepted);
+        Assert.AreEqual(0, stack.Count);
+    }
+
+    [Test]
+    public void GatewayPaidCastChargesManaAndCreatesOneAction()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(0, 4);
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => true,
+            (player, uid, ability) => true);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true, null,
+            (player, uid, ability) => true, paid, (player, uid, ability) => 3);
+        var result = gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "card"));
+        Assert.IsTrue(result.accepted);
+        Assert.AreEqual(1, mana.GetAvailable(0));
+        Assert.AreEqual(1, stack.Count);
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "card")).accepted);
+        Assert.AreEqual(1, mana.GetAvailable(0));
     }
 
 }
