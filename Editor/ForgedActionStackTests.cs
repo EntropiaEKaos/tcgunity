@@ -53,5 +53,29 @@ public class ForgedActionStackTests
         Assert.IsFalse(stack.Pass(0));
         Assert.AreEqual(1, stack.PriorityPlayer);
     }
+    [Test]
+    public void SnapshotRoundTripPreservesPriorityAndActionIds()
+    {
+        var original = new ForgedActionStack(2, 0);
+        var spell = original.Push(0, "spell", "cast");
+        Assert.IsFalse(original.Pass(1));
+        var restored = ForgedActionStack.FromSnapshot(original.ExportSnapshot());
+        Assert.AreEqual(1, restored.Count);
+        Assert.AreEqual(0, restored.PriorityPlayer);
+        Assert.AreEqual(spell.id, restored.Peek().id);
+        Assert.IsTrue(restored.Pass(0));
+        Assert.AreEqual(spell.id, restored.PopTop().id);
+    }
+
+    [Test]
+    public void SnapshotRejectsTamperedPendingIdentifiers()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        stack.Push(0, "spell", "cast");
+        var snapshot = stack.ExportSnapshot();
+        snapshot.entries[0].id = snapshot.nextId;
+        Assert.Throws<System.ArgumentException>(() => ForgedActionStack.FromSnapshot(snapshot));
+    }
+
 }
 #endif
