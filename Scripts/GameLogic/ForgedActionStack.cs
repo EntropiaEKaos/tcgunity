@@ -30,6 +30,8 @@ namespace TcgEngine
         private readonly int playerCount;
         private long nextId = 1;
         private int consecutivePasses;
+        private bool resolutionReady;
+        public bool ResolutionReady { get { return resolutionReady; } }
         public int PriorityPlayer { get; private set; }
         public int Count { get { return entries.Count; } }
 
@@ -48,18 +50,19 @@ namespace TcgEngine
 
         public Entry Push(int controllerId, string sourceUid, string abilityId)
         {
-            if (controllerId != PriorityPlayer || string.IsNullOrEmpty(sourceUid))
+            if (resolutionReady || controllerId != PriorityPlayer || string.IsNullOrEmpty(sourceUid))
                 throw new InvalidOperationException("Not your priority or missing source");
             Entry entry = new Entry(nextId++, controllerId, sourceUid, abilityId);
             entries.Add(entry);
             consecutivePasses = 0;
+            resolutionReady = false;
             PriorityPlayer = (controllerId + 1) % playerCount;
             return entry;
         }
 
         public bool Counter(int controllerId, long pendingId)
         {
-            if (controllerId != PriorityPlayer || pendingId <= 0)
+            if (resolutionReady || controllerId != PriorityPlayer || pendingId <= 0)
                 return false;
             // Explicit IDs avoid cancelling the wrong spell; counters may target
             // any pending action. Removing it preserves other pending actions.
@@ -81,24 +84,27 @@ namespace TcgEngine
         /// </summary>
         public bool Pass(int playerId)
         {
-            if (playerId != PriorityPlayer)
+            if (resolutionReady || playerId != PriorityPlayer)
                 return false;
             consecutivePasses++;
             PriorityPlayer = (PriorityPlayer + 1) % playerCount;
             if (consecutivePasses < playerCount)
                 return false;
             consecutivePasses = 0;
+            resolutionReady = true;
             return true;
         }
 
         public Entry PopTop()
         {
-            if (consecutivePasses != 0)
-                throw new InvalidOperationException("Priority pass round is incomplete");
+            if (!resolutionReady)
+                throw new InvalidOperationException("All players must pass before resolution");
+            resolutionReady = false;
             if (entries.Count == 0)
                 return null;
             Entry top = entries[entries.Count - 1];
             entries.RemoveAt(entries.Count - 1);
+            PriorityPlayer = top.controllerId;
             return top;
         }
     }
