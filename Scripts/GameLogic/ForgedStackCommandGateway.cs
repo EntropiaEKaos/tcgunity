@@ -102,21 +102,19 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Counter)
             {
-                // Reject stale IDs and wrong priority before calling external rule hooks.
-                // Hooks may later include mana checks, but must remain side-effect-free.
+                if (paidActions == null || manaCost == null || canCounter == null)
+                    return Reject("Paid counter service not configured");
                 if (stack.ResolutionReady || stack.PriorityPlayer != command.playerId
                     || !stack.HasPendingAction(command.targetActionId))
                     return Reject("No pending target or priority denied");
-                // Never accept a free counter solely on knowledge of an action ID.
-                // The host supplies a rule/cost validator. No validator means deny.
                 if (string.IsNullOrEmpty(command.sourceUid)
-                    || !ownsSource(command.playerId, command.sourceUid)
-                    || canCounter == null
-                    || !canCounter(command.playerId, command.sourceUid, command.targetActionId))
-                    return Reject("Counter source or rules denied");
-                if (stack.Counter(command.playerId, command.targetActionId))
-                    return new Result { accepted = true };
-                return Reject("Invalid counter target or priority");
+                    || !ownsSource(command.playerId, command.sourceUid))
+                    return Reject("Counter source denied");
+                int cost = manaCost(command.playerId, command.sourceUid, command.abilityId);
+                long id = paidActions.TryCounter(authenticatedPlayerId, command.playerId,
+                    command.sourceUid, command.abilityId, command.targetActionId, cost, canCounter);
+                return id > 0 ? new Result { accepted = true, actionId = id }
+                    : Reject("Mana or counter rules denied");
             }
             return Reject("Unknown command");
         }
