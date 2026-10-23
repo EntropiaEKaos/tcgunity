@@ -23,3 +23,10 @@ FORGED 2 is the working name for evolving tcgunity into a next-generation FORGED
 
 ## Current state
 A pure domain model is included below; full integration is not yet implemented. See `Scripts/GameLogic/ForgedActionStack.cs`.
+
+## Priority state-machine hardening
+- `ResolutionReady` is set only after all players pass in order; `PopTop()` rejects premature resolution.
+- A new push or cancellation resets accumulated passes. Pushing/countering/passing during the resolution-ready window is rejected.
+- After a LIFO pop, priority returns to the resolved action's controller. The authoritative server will need to define priority rules for each phase before integration.
+- Tests added at `Editor/ForgedActionStackTests.cs` for LIFO, ID-specific cancellation, 4-player wraparound and invalid passes.
+- Tests are authored, not executed. The project does not currently expose a configured test pipeline; Unity Editor Test Runner verification remains necessary.
