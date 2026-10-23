@@ -30,14 +30,17 @@ namespace TcgEngine
         private readonly ForgedActionStack stack;
         private readonly Func<int, string, bool> ownsSource;
         private readonly Func<int, string, long, bool> canCounter;
+        private readonly Func<int, string, string, bool> canPlay;
         private bool executing;
 
         public ForgedStackCommandGateway(ForgedActionStack stack, Func<int, string, bool> ownsSource,
-            Func<int, string, long, bool> canCounter = null)
+            Func<int, string, long, bool> canCounter = null,
+            Func<int, string, string, bool> canPlay = null)
         {
             this.stack = stack ?? throw new ArgumentNullException(nameof(stack));
             this.ownsSource = ownsSource ?? throw new ArgumentNullException(nameof(ownsSource));
             this.canCounter = canCounter;
+            this.canPlay = canPlay;
         }
 
         public Result Execute(int authenticatedPlayerId, Command command)
@@ -74,9 +77,13 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Play)
             {
+                if (stack.ResolutionReady || stack.PriorityPlayer != command.playerId)
+                    return Reject("Priority denied");
                 if (string.IsNullOrEmpty(command.sourceUid)
-                    || !ownsSource(command.playerId, command.sourceUid))
-                    return Reject("Source not controlled by player");
+                    || !ownsSource(command.playerId, command.sourceUid)
+                    || canPlay == null
+                    || !canPlay(command.playerId, command.sourceUid, command.abilityId))
+                    return Reject("Play source or rules denied");
                 try
                 {
                     var entry = stack.Push(command.playerId, command.sourceUid, command.abilityId);
