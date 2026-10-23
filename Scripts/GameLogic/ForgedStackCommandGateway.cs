@@ -47,10 +47,9 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Pass)
             {
-                bool done = stack.Pass(command.playerId);
-                // Distinguish an accepted intermediate pass from a rejected pass.
-                if (!done && stack.PriorityPlayer != (command.playerId + 1) % stack.ExportSnapshot().playerCount)
+                if (stack.ResolutionReady || stack.PriorityPlayer != command.playerId)
                     return Reject("Priority denied");
+                bool done = stack.Pass(command.playerId);
                 return new Result { accepted = true, resolutionReady = done };
             }
 
