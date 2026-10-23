@@ -77,5 +77,57 @@ public class ForgedActionStackTests
         Assert.Throws<System.ArgumentException>(() => ForgedActionStack.FromSnapshot(snapshot));
     }
 
+    [Test]
+    public void CounterMiddleActionKeepsRemainingLifoOrder()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var first = stack.Push(0, "spell-a", "play");
+        var second = stack.Push(1, "spell-b", "play");
+        var third = stack.Push(0, "spell-c", "play");
+        Assert.IsTrue(stack.Counter(1, second.id));
+        Assert.AreEqual(2, stack.Count);
+        Assert.IsFalse(stack.Pass(0));
+        Assert.IsTrue(stack.Pass(1));
+        Assert.AreEqual(third.id, stack.PopTop().id);
+        Assert.IsFalse(stack.Pass(0));
+        Assert.IsTrue(stack.Pass(1));
+        Assert.AreEqual(first.id, stack.PopTop().id);
+    }
+
+    [Test]
+    public void NewActionResetsAccumulatedPasses()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        stack.Push(0, "a", "play");
+        Assert.IsFalse(stack.Pass(1));
+        stack.Push(0, "b", "response");
+        Assert.IsFalse(stack.Pass(1));
+        Assert.IsTrue(stack.Pass(0));
+        Assert.AreEqual("b", stack.PopTop().sourceUid);
+    }
+
+    [Test]
+    public void CompletedPassRoundBlocksNewCommandsBeforePop()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        stack.Push(0, "a", "play");
+        Assert.IsFalse(stack.Pass(1));
+        Assert.IsTrue(stack.Pass(0));
+        Assert.IsFalse(stack.Pass(1));
+        Assert.IsFalse(stack.Counter(1, stack.Peek().id));
+        Assert.Throws<System.InvalidOperationException>(() => stack.Push(1, "b", "play"));
+        Assert.AreEqual("a", stack.PopTop().sourceUid);
+    }
+
+    [Test]
+    public void EmptyStackPassRoundDoesNotInventAnAction()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        Assert.IsFalse(stack.Pass(0));
+        Assert.IsTrue(stack.Pass(1));
+        Assert.IsNull(stack.PopTop());
+        Assert.AreEqual(0, stack.Count);
+    }
+
 }
 #endif
