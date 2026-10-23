@@ -30,6 +30,7 @@ namespace TcgEngine
         private readonly ForgedActionStack stack;
         private readonly Func<int, string, bool> ownsSource;
         private readonly Func<int, string, long, bool> canCounter;
+        private bool executing;
 
         public ForgedStackCommandGateway(ForgedActionStack stack, Func<int, string, bool> ownsSource,
             Func<int, string, long, bool> canCounter = null)
@@ -40,6 +41,21 @@ namespace TcgEngine
         }
 
         public Result Execute(int authenticatedPlayerId, Command command)
+        {
+            if (executing)
+                return Reject("Nested command execution denied");
+            executing = true;
+            try
+            {
+                return ExecuteCore(authenticatedPlayerId, command);
+            }
+            finally
+            {
+                executing = false;
+            }
+        }
+
+        private Result ExecuteCore(int authenticatedPlayerId, Command command)
         {
             if (command == null || authenticatedPlayerId != command.playerId)
                 return Reject("Unauthenticated player or missing command");
