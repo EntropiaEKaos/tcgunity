@@ -61,7 +61,11 @@ namespace TcgEngine
                 if (!item.committed && !restored.stack.HasPendingAction(item.actionId))
                     throw new ArgumentException("Uncommitted mana reservation has no pending action");
             }
+            // Actions already processed into journal/outbox may not remain pending.
             var journalIds = new HashSet<long>(snapshot.journal.handledActionIds);
+            foreach (long actionId in journalIds)
+                if (restored.stack.HasPendingAction(actionId))
+                    throw new ArgumentException("Processed action still pending in stack");
             foreach (var instruction in snapshot.outbox.items)
             {
                 if (!journalIds.Contains(instruction.actionId))
