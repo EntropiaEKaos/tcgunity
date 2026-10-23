@@ -119,6 +119,14 @@ namespace TcgEngine
         }
 
         // Read-only validation before calling rule or payment hooks.
+        public Entry FindPendingAction(long actionId)
+        {
+            foreach (Entry entry in entries)
+                if (entry.id == actionId)
+                    return entry;
+            return null;
+        }
+
         public bool HasPendingAction(long actionId)
         {
             if (actionId <= 0)
