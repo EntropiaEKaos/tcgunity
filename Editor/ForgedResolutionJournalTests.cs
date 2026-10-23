@@ -42,5 +42,27 @@ public class ForgedResolutionJournalTests
         };
         Assert.AreEqual(0, journal.Record(outcome).Count);
     }
+    [Test]
+    public void RestoredJournalSuppressesRepeatedCounterTransitions()
+    {
+        var journal = new ForgedResolutionJournal();
+        var outcome = new ForgedStackResolutionService.Outcome {
+            resolvedActionId = 2, resolvedSourceUid = "counter", isCounter = true,
+            counterSucceeded = true, counteredActionId = 1, counteredSourceUid = "spell"
+        };
+        Assert.AreEqual(2, journal.Record(outcome).Count);
+        var restored = ForgedResolutionJournal.FromSnapshot(journal.ExportSnapshot());
+        Assert.AreEqual(0, restored.Record(outcome).Count);
+    }
+
+    [Test]
+    public void JournalSnapshotRejectsRepeatedIds()
+    {
+        var snapshot = new ForgedResolutionJournal.Snapshot();
+        snapshot.handledActionIds.Add(1);
+        snapshot.handledActionIds.Add(1);
+        Assert.Throws<System.ArgumentException>(() => ForgedResolutionJournal.FromSnapshot(snapshot));
+    }
+
 }
 #endif
