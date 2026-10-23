@@ -112,6 +112,17 @@ namespace TcgEngine
             return restored;
         }
 
+        // Read-only validation before calling rule or payment hooks.
+        public bool HasPendingAction(long actionId)
+        {
+            if (actionId <= 0)
+                return false;
+            foreach (Entry entry in entries)
+                if (entry.id == actionId)
+                    return true;
+            return false;
+        }
+
         public Entry Peek()
         {
             return entries.Count == 0 ? null : entries[entries.Count - 1];
