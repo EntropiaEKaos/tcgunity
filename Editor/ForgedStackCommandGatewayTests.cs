@@ -50,5 +50,30 @@ public class ForgedStackCommandGatewayTests
         Assert.IsTrue(second.resolutionReady);
         Assert.AreEqual(added.actionId, stack.PopTop().id);
     }
+    [Test]
+    public void CounterFailsClosedWithoutServerRuleValidator()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        stack.Push(0, "spell", "play");
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true);
+        var result = gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter-card", 1));
+        Assert.IsFalse(result.accepted);
+        Assert.AreEqual(1, stack.Count);
+    }
+
+    [Test]
+    public void CounterRequiresOwnedCardAndExplicitServerApproval()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "spell", "play");
+        var gateway = new ForgedStackCommandGateway(stack,
+            (player, uid) => player == 1 && uid == "counter-card",
+            (player, uid, actionId) => actionId == spell.id);
+        Assert.IsFalse(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "stolen", spell.id)).accepted);
+        Assert.AreEqual(1, stack.Count);
+        Assert.IsTrue(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter-card", spell.id)).accepted);
+        Assert.AreEqual(0, stack.Count);
+    }
+
 }
 #endif
