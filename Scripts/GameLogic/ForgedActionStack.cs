@@ -43,6 +43,75 @@ namespace TcgEngine
             PriorityPlayer = startingPlayer;
         }
 
+        [Serializable]
+        public sealed class Snapshot
+        {
+            public int playerCount;
+            public int priorityPlayer;
+            public int consecutivePasses;
+            public bool resolutionReady;
+            public long nextId;
+            public List<EntrySnapshot> entries = new List<EntrySnapshot>();
+        }
+
+        [Serializable]
+        public sealed class EntrySnapshot
+        {
+            public long id;
+            public int controllerId;
+            public string sourceUid;
+            public string abilityId;
+        }
+
+        /// <summary>Returns an independent state copy for authoritative sync or replay.</summary>
+        public Snapshot ExportSnapshot()
+        {
+            var snapshot = new Snapshot
+            {
+                playerCount = playerCount,
+                priorityPlayer = PriorityPlayer,
+                consecutivePasses = consecutivePasses,
+                resolutionReady = resolutionReady,
+                nextId = nextId
+            };
+            foreach (Entry entry in entries)
+                snapshot.entries.Add(new EntrySnapshot
+                {
+                    id = entry.id,
+                    controllerId = entry.controllerId,
+                    sourceUid = entry.sourceUid,
+                    abilityId = entry.abilityId
+                });
+            return snapshot;
+        }
+
+        /// <summary>Restore a validated snapshot; never trust client-supplied snapshots.</summary>
+        public static ForgedActionStack FromSnapshot(Snapshot snapshot)
+        {
+            if (snapshot == null || snapshot.playerCount < 2
+                || snapshot.priorityPlayer < 0 || snapshot.priorityPlayer >= snapshot.playerCount
+                || snapshot.consecutivePasses < 0 || snapshot.consecutivePasses >= snapshot.playerCount
+                || (snapshot.resolutionReady && snapshot.consecutivePasses != 0)
+                || snapshot.nextId < 1 || snapshot.entries == null)
+                throw new ArgumentException("Invalid action stack snapshot");
+
+            var restored = new ForgedActionStack(snapshot.playerCount, snapshot.priorityPlayer);
+            long priorId = 0;
+            foreach (EntrySnapshot entry in snapshot.entries)
+            {
+                if (entry == null || entry.id <= priorId || entry.id >= snapshot.nextId
+                    || entry.controllerId < 0 || entry.controllerId >= snapshot.playerCount
+                    || string.IsNullOrEmpty(entry.sourceUid))
+                    throw new ArgumentException("Invalid pending entry");
+                restored.entries.Add(new Entry(entry.id, entry.controllerId, entry.sourceUid, entry.abilityId));
+                priorId = entry.id;
+            }
+            restored.nextId = snapshot.nextId;
+            restored.consecutivePasses = snapshot.consecutivePasses;
+            restored.resolutionReady = snapshot.resolutionReady;
+            return restored;
+        }
+
         public Entry Peek()
         {
             return entries.Count == 0 ? null : entries[entries.Count - 1];
