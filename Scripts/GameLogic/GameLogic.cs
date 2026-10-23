@@ -791,6 +791,15 @@ namespace TcgEngine.Gameplay
             return true;
         }
 
+        // Opt-in counter primitive. Only cancels an ability still waiting in the
+        // resolution queue; never claims to undo effects already executed.
+        public virtual bool CounterPendingAbility(Card target)
+        {
+            if (target == null)
+                return false;
+            return resolve_queue.CancelPendingAbility(target.uid);
+        }
+
         //Create a new card and send it to the board
         public virtual Card SummonCard(Player player, CardData card, VariantData variant, Slot slot)
         {
