@@ -12,6 +12,8 @@
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../Scripts/GameLogic/ForgedResolutionJournal.cs" Link="ForgedResolutionJournal.cs" />
+    <Compile Include="../../Editor/ForgedResolutionJournalTests.cs" Link="ForgedResolutionJournalTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedStackResolutionService.cs" Link="ForgedStackResolutionService.cs" />
     <Compile Include="../../Editor/ForgedStackResolutionServiceTests.cs" Link="ForgedStackResolutionServiceTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedPaidActionService.cs" Link="ForgedPaidActionService.cs" />
