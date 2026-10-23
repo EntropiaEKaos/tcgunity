@@ -33,3 +33,9 @@ Existing cards may depend on its behavior; this initial effect is intentionally 
 - Use `AbilityTarget.CardSelector` with target conditions `ConditionCardPile=Discard`, `ConditionCardType=Character`, `ConditionOwner=true`.
 - If the board is full, there is no zone change. Configure card text accordingly; ability cost/activation may still be spent because the effect returns void.
 - Validations required: same UID, occupied field no-op, no OnPlay trigger, invalid target no-op, multiplayer synchronization and OnSummon client animation.
+
+## Third slice — full-board prevention and accessible graveyard
+- New `ConditionGraveyardBoardSpace`: add the same asset to **conditions_trigger** and **conditions_target** of your resurrection ability so that an already-full board does not offer an impossible resurrection target.
+- `BoardDeck.OnClickGraveyard()` can be connected to a standard Unity UI Button's OnClick (useful on mobile, where right-click is unavailable). No scene/prefab bindings are automatically made by this PR.
+- `ShowDiscardCards()` now checks client readiness, safely rejects a missing player, and does not interrupt a visible ability card selection.
+- IMPORTANT: this is an authoring-time condition; the actual resurrection method still checks availability at effect resolution. If a slot becomes unavailable between activation and resolution, the effect remains a no-op and the ability's cost rules apply. Fully transactional cancellation is not implemented.
