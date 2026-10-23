@@ -754,6 +754,52 @@ namespace TcgEngine.Gameplay
             return SummonCardHand(player, icard, copy.VariantData);
         }
 
+        //Move the original card from the owner's graveyard to a free board slot.
+        //Unlike SummonCard this preserves the original UID and does not manufacture a copy.
+        public virtual bool ReviveDiscardCard(Card caster, Card target)
+        {
+            if (caster == null || target == null || target.CardData == null)
+                return false;
+
+            if (caster.player_id != target.player_id || !target.CardData.IsCharacter())
+                return false;
+
+            if (!game_data.IsInDiscard(target))
+                return false;
+
+            Player player = game_data.GetPlayer(target.player_id);
+            if (player == null || !player.cards_discard.Contains(target))
+                return false;
+
+            Slot slot = player.GetRandomEmptySlot(random);
+            if (!slot.IsValid() || slot.p != Slot.GetP(player.player_id)
+                || game_data.GetSlotCard(slot) != null)
+                return false;
+
+            player.RemoveCardFromAllGroups(target);
+            target.Clear();
+            target.slot = slot;
+            target.exhausted = true;
+            player.cards_board.Add(target);
+            game_data.last_summoned = target.uid;
+
+            // Resurrection deliberately does NOT trigger normal OnPlay effects.
+            // It does update auras and tell clients that the card entered the board.
+            UpdateOngoing();
+            RefreshData();
+            onCardSummoned?.Invoke(target, slot);
+            return true;
+        }
+
+        // Opt-in counter primitive. Only cancels an ability still waiting in the
+        // resolution queue; never claims to undo effects already executed.
+        public virtual bool CounterPendingAbility(Card target)
+        {
+            if (target == null)
+                return false;
+            return resolve_queue.CancelPendingAbility(target.uid);
+        }
+
         //Create a new card and send it to the board
         public virtual Card SummonCard(Player player, CardData card, VariantData variant, Slot slot)
         {

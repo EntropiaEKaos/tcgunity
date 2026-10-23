@@ -55,14 +55,26 @@ namespace TcgEngine.Client
 
         public void ShowDeckCards()
         {
+            if (!GameClient.Get().IsReady() || CardSelector.Get() == null || CardSelector.Get().IsAbility())
+                return;
             Player player = GameClient.Get().GetPlayer();
-            CardSelector.Get().Show(player.cards_deck, "DECK");
+            if (player != null)
+                CardSelector.Get().Show(player.cards_deck, "DECK");
         }
 
         public void ShowDiscardCards()
         {
+            if (!GameClient.Get().IsReady() || CardSelector.Get() == null || CardSelector.Get().IsAbility())
+                return;
             Player player = opponent ? GameClient.Get().GetOpponentPlayer() : GameClient.Get().GetPlayer();
-            CardSelector.Get().Show(player.cards_discard, "DISCARD");
+            if (player != null)
+                CardSelector.Get().Show(player.cards_discard, opponent ? "OPPONENT GRAVEYARD" : "GRAVEYARD");
+        }
+
+        // May be wired to a Unity UI Button for mouse/touch access to discard.
+        public void OnClickGraveyard()
+        {
+            ShowDiscardCards();
         }
 
         private void ShowHover(bool hover)
