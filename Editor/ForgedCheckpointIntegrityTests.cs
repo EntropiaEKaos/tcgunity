@@ -7,8 +7,8 @@ public class ForgedCheckpointIntegrityTests
     [Test]
     public void SealedCheckpointReturnsOriginalPayload()
     {
-        var envelope = ForgedCheckpointIntegrity.Seal("{\\"version\\":1}");
-        Assert.AreEqual("{\\"version\\":1}", ForgedCheckpointIntegrity.Verify(envelope));
+        var envelope = ForgedCheckpointIntegrity.Seal("checkpoint-version-one");
+        Assert.AreEqual("checkpoint-version-one", ForgedCheckpointIntegrity.Verify(envelope));
         Assert.AreEqual(64, envelope.sha256.Length);
     }
 
