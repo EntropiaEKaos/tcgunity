@@ -29,11 +29,14 @@ namespace TcgEngine
 
         private readonly ForgedActionStack stack;
         private readonly Func<int, string, bool> ownsSource;
+        private readonly Func<int, string, long, bool> canCounter;
 
-        public ForgedStackCommandGateway(ForgedActionStack stack, Func<int, string, bool> ownsSource)
+        public ForgedStackCommandGateway(ForgedActionStack stack, Func<int, string, bool> ownsSource,
+            Func<int, string, long, bool> canCounter = null)
         {
             this.stack = stack ?? throw new ArgumentNullException(nameof(stack));
             this.ownsSource = ownsSource ?? throw new ArgumentNullException(nameof(ownsSource));
+            this.canCounter = canCounter;
         }
 
         public Result Execute(int authenticatedPlayerId, Command command)
@@ -71,6 +74,13 @@ namespace TcgEngine
 
             if (command.kind == CommandKind.Counter)
             {
+                // Never accept a free counter solely on knowledge of an action ID.
+                // The host supplies a rule/cost validator. No validator means deny.
+                if (string.IsNullOrEmpty(command.sourceUid)
+                    || !ownsSource(command.playerId, command.sourceUid)
+                    || canCounter == null
+                    || !canCounter(command.playerId, command.sourceUid, command.targetActionId))
+                    return Reject("Counter source or rules denied");
                 if (stack.Counter(command.playerId, command.targetActionId))
                     return new Result { accepted = true };
                 return Reject("Invalid counter target or priority");
