@@ -104,5 +104,42 @@ public class ForgedStackCommandGatewayTests
         Assert.AreEqual(1, stack.Count);
     }
 
+    [Test]
+    public void RuleCallbackCannotSubmitNestedCommand()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var spell = stack.Push(0, "original", "cast");
+        ForgedStackCommandGateway gateway = null;
+        bool nestedAccepted = true;
+        gateway = new ForgedStackCommandGateway(stack,
+            (player, uid) => true,
+            (player, uid, id) =>
+            {
+                nestedAccepted = gateway.Execute(1,
+                    Cmd(ForgedStackCommandGateway.CommandKind.Pass, 1)).accepted;
+                return true;
+            });
+        var counter = gateway.Execute(1,
+            Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", spell.id));
+        Assert.IsTrue(counter.accepted);
+        Assert.IsFalse(nestedAccepted);
+        Assert.AreEqual(0, stack.Count);
+        Assert.AreEqual(0, stack.PriorityPlayer);
+    }
+
+    [Test]
+    public void RuleCallbackExceptionDoesNotLeaveGatewayLocked()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        stack.Push(0, "original", "cast");
+        var gateway = new ForgedStackCommandGateway(stack,
+            (player, uid) => true,
+            (player, uid, id) => throw new System.InvalidOperationException("Rule failed"));
+        Assert.Throws<System.InvalidOperationException>(() =>
+            gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Counter, 1, "counter", 1)));
+        Assert.AreEqual(1, stack.Count);
+        Assert.IsTrue(gateway.Execute(1, Cmd(ForgedStackCommandGateway.CommandKind.Pass, 1)).accepted);
+    }
+
 }
 #endif
