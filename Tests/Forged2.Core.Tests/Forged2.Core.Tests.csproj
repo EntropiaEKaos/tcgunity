@@ -12,6 +12,8 @@
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../Scripts/GameLogic/ForgedZoneOutboxProcessor.cs" Link="ForgedZoneOutboxProcessor.cs" />
+    <Compile Include="../../Editor/ForgedZoneOutboxProcessorTests.cs" Link="ForgedZoneOutboxProcessorTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedZoneOutbox.cs" Link="ForgedZoneOutbox.cs" />
     <Compile Include="../../Editor/ForgedZoneOutboxTests.cs" Link="ForgedZoneOutboxTests.cs" />
     <Compile Include="../../Scripts/GameLogic/ForgedResolutionJournal.cs" Link="ForgedResolutionJournal.cs" />
