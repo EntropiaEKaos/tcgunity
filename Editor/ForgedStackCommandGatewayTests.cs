@@ -162,14 +162,32 @@ public class ForgedStackCommandGatewayTests
     }
 
     [Test]
-    public void PlayRejectedWhenGameRulesDenyCost()
+    public void MissingPaidServiceRejectsBeforeRuleValidation()
     {
         var stack = new ForgedActionStack(2, 0);
         int validations = 0;
         var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true, null,
             (player, uid, ability) => { validations++; return false; });
         Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "my-card")).accepted);
+        Assert.AreEqual(0, validations);
+        Assert.AreEqual(0, stack.Count);
+    }
+
+    [Test]
+    public void ConfiguredPaidServiceRejectsPlayWhenRulesDeny()
+    {
+        var stack = new ForgedActionStack(2, 0);
+        var mana = new ForgedManaLedger();
+        mana.SetAvailable(0, 5);
+        int validations = 0;
+        var paid = new ForgedPaidActionService(stack, mana, (player, uid) => true,
+            (player, uid, ability) => true);
+        var gateway = new ForgedStackCommandGateway(stack, (player, uid) => true, null,
+            (player, uid, ability) => { validations++; return false; },
+            paid, (player, uid, ability) => 2);
+        Assert.IsFalse(gateway.Execute(0, Cmd(ForgedStackCommandGateway.CommandKind.Play, 0, "card")).accepted);
         Assert.AreEqual(1, validations);
+        Assert.AreEqual(5, mana.GetAvailable(0));
         Assert.AreEqual(0, stack.Count);
     }
 
